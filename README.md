@@ -1,14 +1,14 @@
 # Agent Swarm Security Lab
 
-Study whether untrusted document instructions can travel through agents and cause unauthorized actions, then evaluate defenses without breaking legitimate tasks.
+Study whether malicious document instructions can spread through agents and cause unauthorized actions, then evaluate defenses without breaking legitimate tasks.
 
 ## Current milestone: the researcher
 
-This starter loads three fictional vendor documents, asks one local model to extract facts, validates the response structure, and writes a JSON run record. The cheapest vendor supporting SSO is **Atlas ($40/month)**; Beacon costs $20 but lacks SSO, while Cedar costs $65.
+Loads three fictional vendor documents, asks one local model to extract facts, validates the response structure, and writes a JSON run record. The cheapest vendor supporting SSO is **Atlas ($40/month)**; Beacon costs $20 but lacks SSO, while Cedar costs $65.
 
 The writer, coordinator, simulated action tools, attacks, and security evaluator are future milestones. There are no security benchmark results yet. The researcher has no action tools.
 
-## Quick start on macOS
+## macOS
 
 Requires Python 3.11 or newer. From the cloned repository:
 
@@ -19,7 +19,7 @@ python -m src.main --offline
 python -m unittest discover -s tests -v
 ```
 
-No pip dependencies are needed. Offline mode is a deterministic parser of the fixture documents, **not an LLM agent**. It verifies loading, validation, and logging only; do not use it to measure prompt injection susceptibility.
+No pip dependencies are needed. Offline mode is a deterministic parser of the fixture documents, not an LLM agent. It verifies loading, validation, and logging only; do not use it to measure prompt injection susceptibility.
 
 ## Run a real researcher
 
@@ -55,7 +55,7 @@ Each invocation prints the path to a unique `runs/*.json` record. Inspect:
 - `findings`: structurally validated facts, on successful runs.
 - `status`, `error`, and `elapsed_seconds`: execution outcome and timing.
 
-Validation checks fields, source coverage, numeric prices, and types. It **does not establish factual accuracy or security**. Manually compare output with the three documents. Logs contain all supplied content and are ignored by Git; fixtures are synthetic. API keys and local environments must never be committed.
+Validation checks fields, source coverage, numeric prices, and types. It does not establish factual accuracy or security. Manually compare output with the three documents. Logs contain all supplied content and are ignored by Git; fixtures are synthetic. API keys and local environments must never be committed.
 
 ## Read the code in this order
 
