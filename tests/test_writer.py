@@ -72,7 +72,7 @@ class WriterTests(unittest.TestCase):
         code, record, calls = self.run_pipeline([self.research, response])
         self.assertEqual((code, calls), (1, 2))
         self.assertEqual(record["writer"]["response"]["content"], content)
-        self.assertEqual(record["writer"]["prompt_version"], "writer-v3")
+        self.assertEqual(record["writer"]["prompt_version"], "writer-v4")
         self.assertNotIn("report", record["writer"])
 
     def test_unknown_and_duplicate_alternatives_have_specific_errors(self):
