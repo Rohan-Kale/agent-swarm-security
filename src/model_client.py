@@ -11,11 +11,11 @@ class OllamaClient:
         self.host = host.rstrip("/")
         self.timeout = timeout
 
-    def complete(self, messages):
+    def complete(self, messages, *, schema=None):
         payload = {
             "model": self.model,
             "messages": messages,
-            "format": "json",
+            "format": schema if schema is not None else "json",
             "stream": False,
             "options": {"temperature": 0},
         }
