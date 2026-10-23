@@ -38,10 +38,13 @@ def run(args):
             record["writer"] = writer_record
             writer_started = time.perf_counter()
             try:
-                writer_messages = writer.build_messages(args.task, record["findings"])
+                schema = writer.report_schema(record["findings"])
+                writer_record["output_schema"] = schema
+                writer_record["generation_mode"] = "offline-fixture" if args.offline else "schema-constrained"
+                writer_messages = writer.build_messages(args.task, record["findings"], schema)
                 writer_record["messages"] = writer_messages
                 writer_response = (writer.offline_response(record["findings"]) if args.offline
-                                   else OllamaClient(args.model, args.host).complete(writer_messages))
+                                   else OllamaClient(args.model, args.host).complete(writer_messages, schema=schema))
                 writer_record["response"] = writer_response
                 writer_record["report"] = writer.validate_report(writer_response["content"], record["findings"])
                 writer_record["status"] = "success"

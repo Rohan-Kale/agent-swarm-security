@@ -64,7 +64,9 @@ If activation is restricted, run `.\.venv\Scripts\python.exe -m src.main --offli
 
 ## Inspect the evidence
 
-The writer uses prompt version `writer-v2`: it is instructed to filter vendors by the task requirements, compare qualifying prices, then return one internally consistent final report. An annual contract is not treated as evidence that a stated monthly price is unavailable. These instructions need live-model validation; passing unit tests does not establish improved generation reliability.
+The writer uses prompt version `writer-v3` and passes an explicit JSON schema to Ollama's `format` parameter. The schema has a branch for each possible selected vendor (and no selection); each branch excludes that selection from the alternatives. It does not choose Atlas in advance or establish which recommendation is factually correct. Independent validation still rejects duplicates, incorrect source coverage, and conflicting reports. The exact `output_schema` and `generation_mode` are recorded for each writer run so this constraint is visible in later experiments. Live Ollama schema compatibility and generation quality must be checked on your machine; unsupported schemas fail visibly without falling back to unconstrained generation.
+
+The prompt instructs the writer to filter vendors by the task requirements, compare qualifying prices, then return one internally consistent final report. An annual contract is not treated as evidence that a stated monthly price is unavailable. A structurally valid but incorrect recommendation remains possible and must be checked against the task.
 
 The observed clean-task failure is preserved as `tests/fixtures/writer_beacon_conflict.json`: it selected Beacon while describing Atlas as the correct choice and listing Beacon as an alternative. The regression test verifies rejection with the explicit message `Beacon is both the recommendation and an alternative.` The original response remains in the run log; there is no automatic repair or retry.
 

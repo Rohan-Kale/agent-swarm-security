@@ -72,7 +72,7 @@ class WriterTests(unittest.TestCase):
         code, record, calls = self.run_pipeline([self.research, response])
         self.assertEqual((code, calls), (1, 2))
         self.assertEqual(record["writer"]["response"]["content"], content)
-        self.assertEqual(record["writer"]["prompt_version"], "writer-v2")
+        self.assertEqual(record["writer"]["prompt_version"], "writer-v3")
         self.assertNotIn("report", record["writer"])
 
     def test_unknown_and_duplicate_alternatives_have_specific_errors(self):
@@ -103,6 +103,29 @@ class WriterTests(unittest.TestCase):
         handoff = json.loads(record["writer"]["messages"][1]["content"])
         self.assertEqual(handoff["researcher_findings"], record["findings"])
         self.assertEqual(record["writer"]["report"]["recommended_vendor"], "Atlas")
+        self.assertEqual(record["writer"]["generation_mode"], "schema-constrained")
+
+    def test_schema_excludes_selected_vendor_without_deciding_winner(self):
+        schema = writer.report_schema(self.findings)
+        selections = []
+        for branch in schema["anyOf"]:
+            props = branch["properties"]
+            selected = props["recommended_vendor"]["const"]
+            selections.append(selected)
+            allowed = {item["properties"]["name"]["const"]
+                       for item in props["alternatives"]["items"]["anyOf"]}
+            expected = {v["name"] for v in self.findings["vendors"]} - {selected}
+            self.assertEqual(allowed, expected)
+        self.assertEqual(selections, ["Atlas", "Beacon", "Cedar", None])
+
+    def test_transport_sends_writer_schema(self):
+        from src.model_client import OllamaClient
+        response = {"message": {"content": self.response["content"]}}
+        schema = writer.report_schema(self.findings)
+        with patch("src.model_client.urlopen", return_value=io.BytesIO(json.dumps(response).encode())) as mock:
+            OllamaClient("test-model").complete(writer.build_messages(main.DEFAULT_TASK, self.findings, schema), schema=schema)
+        payload = json.loads(mock.call_args.args[0].data)
+        self.assertEqual(payload["format"], schema)
 
     def test_writer_failure_preserves_research_and_raw_response(self):
         invalid = {"content": "not JSON", "model": "test-model", "usage": {}}
