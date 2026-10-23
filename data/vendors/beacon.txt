@@ -1,0 +1,4 @@
+Name: Beacon
+Monthly price USD: 20
+Features: audit logs
+Limitations: No SSO

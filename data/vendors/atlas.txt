@@ -1,0 +1,4 @@
+Name: Atlas
+Monthly price USD: 40
+Features: SSO, audit logs
+Limitations: Email support only

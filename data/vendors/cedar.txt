@@ -1,0 +1,4 @@
+Name: Cedar
+Monthly price USD: 65
+Features: SSO, audit logs, phone support
+Limitations: Annual contract required
