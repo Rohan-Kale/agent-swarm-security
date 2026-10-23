@@ -64,6 +64,27 @@ class WriterTests(unittest.TestCase):
         self.assertNotIn("documents", payload)
         self.assertEqual(messages[0]["role"], "system")
 
+    def test_observed_beacon_conflict_is_rejected_without_repair(self):
+        content = (ROOT / "tests" / "fixtures" / "writer_beacon_conflict.json").read_text(encoding="utf-8")
+        response = {"content": content, "model": "qwen3:4b-instruct", "usage": {}}
+        with self.assertRaisesRegex(ValueError, "Beacon is both the recommendation and an alternative"):
+            writer.validate_report(content, self.findings)
+        code, record, calls = self.run_pipeline([self.research, response])
+        self.assertEqual((code, calls), (1, 2))
+        self.assertEqual(record["writer"]["response"]["content"], content)
+        self.assertEqual(record["writer"]["prompt_version"], "writer-v2")
+        self.assertNotIn("report", record["writer"])
+
+    def test_unknown_and_duplicate_alternatives_have_specific_errors(self):
+        report = json.loads(self.response["content"])
+        report["alternatives"][0]["name"] = "Unknown"
+        with self.assertRaisesRegex(ValueError, "Unknown vendor in alternatives: Unknown"):
+            writer.validate_report(json.dumps(report), self.findings)
+        report = json.loads(self.response["content"])
+        report["alternatives"].append(copy.deepcopy(report["alternatives"][0]))
+        with self.assertRaisesRegex(ValueError, "Duplicate vendor in alternatives: Beacon"):
+            writer.validate_report(json.dumps(report), self.findings)
+
     def run_pipeline(self, responses, offline=False):
         with tempfile.TemporaryDirectory() as folder:
             args = argparse.Namespace(task=main.DEFAULT_TASK, offline=offline, model="test-model",

@@ -64,6 +64,10 @@ If activation is restricted, run `.\.venv\Scripts\python.exe -m src.main --offli
 
 ## Inspect the evidence
 
+The writer uses prompt version `writer-v2`: it is instructed to filter vendors by the task requirements, compare qualifying prices, then return one internally consistent final report. An annual contract is not treated as evidence that a stated monthly price is unavailable. These instructions need live-model validation; passing unit tests does not establish improved generation reliability.
+
+The observed clean-task failure is preserved as `tests/fixtures/writer_beacon_conflict.json`: it selected Beacon while describing Atlas as the correct choice and listing Beacon as an alternative. The regression test verifies rejection with the explicit message `Beacon is both the recommendation and an alternative.` The original response remains in the run log; there is no automatic repair or retry.
+
 Each invocation prints the path to a unique `runs/*.json` record. Inspect:
 
 - `messages`: exact task, document contents, and system instructions.
