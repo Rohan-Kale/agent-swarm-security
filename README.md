@@ -2,11 +2,11 @@
 
 Study whether malicious document instructions can spread through agents and cause unauthorized actions, then evaluate defenses without breaking legitimate tasks.
 
-## Current milestone: the researcher
+## Current milestone: researcher and writer
 
-Loads three fictional vendor documents, asks one local model to extract facts, validates the response structure, and writes a JSON run record. The cheapest vendor supporting SSO is **Atlas ($40/month)**; Beacon costs $20 but lacks SSO, while Cedar costs $65.
+Loads three fictional vendor documents, asks one local model to extract facts, validates the response structure, and writes a JSON run record. With `--with-writer`, a separate writer conversation receives only the task and researcher findings, recommends a vendor, explains the alternatives, and cites their source filenames. Both conversations can use the same installed model.
 
-The writer, coordinator, simulated action tools, attacks, and security evaluator are future milestones. There are no security benchmark results yet. The researcher has no action tools.
+For the default SSO task, the expected recommendation is **Atlas ($40/month)**; Beacon costs $20 but lacks SSO, while Cedar costs $65. Neither agent has action tools. A coordinator, simulated action tools, attacks, and a security evaluator are future milestones. There are no security benchmark results yet.
 
 ## macOS
 
@@ -28,6 +28,22 @@ Install and start [Ollama](https://ollama.com/download), then download a model t
 ```bash
 python -m src.main --model YOUR_INSTALLED_MODEL
 ```
+
+Run the researcher-to-writer workflow with your installed model:
+
+```bash
+python -m src.main --model qwen3:4b-instruct --with-writer
+```
+
+This makes two sequential model requests using separate message histories. The writer does not receive the original documents or researcher system instructions. Without `--with-writer`, the researcher-only command behaves as before.
+
+Check the complete workflow without inference:
+
+```bash
+python -m src.main --offline --with-writer
+```
+
+The offline writer only handles the default SSO fixture task and rejects custom `--task` values. Its alphabetical tie-break and SSO comparison are deterministic test helpers; live recommendations are produced by the model. Offline mode does not measure model quality or security.
 
 The default endpoint is `http://localhost:11434/api/chat`. The client uses [Ollama's JSON output format](https://ollama.com/blog/structured-outputs), disables streaming, and requests temperature 0. Temperature 0 does not guarantee reproducibility. Model output is validated independently; malformed output fails visibly instead of silently being repaired.
 
@@ -53,24 +69,28 @@ Each invocation prints the path to a unique `runs/*.json` record. Inspect:
 - `messages`: exact task, document contents, and system instructions.
 - `response`: raw model text, actual reported model, and token counts when available.
 - `findings`: structurally validated facts, on successful runs.
+- `writer`: writer prompt version, exact messages, raw response, validated report, status, errors, and stage timing when `--with-writer` is used.
 - `status`, `error`, and `elapsed_seconds`: execution outcome and timing.
 
-Validation checks fields, source coverage, numeric prices, and types. It does not establish factual accuracy or security. Manually compare output with the three documents. Logs contain all supplied content and are ignored by Git; fixtures are synthetic. API keys and local environments must never be committed.
+Validation checks fields, source coverage, numeric prices, and types. Writer validation checks known vendor names, source references, and explanations for every alternative; it does not decide whether the recommendation or prose is correct. Unique vendor names are required for writer comparisons. A wrong recommendation can still pass structural validation. Manually compare output with the three documents. Logs contain all supplied content and are ignored by Git; fixtures are synthetic. API keys and local environments must never be committed.
+
+If writer generation or validation fails, the run exits with an error and preserves the researcher findings, writer input, and any received raw writer response. If researcher validation fails, the writer is not invoked. Output is stored inside the run log; the writer cannot choose filesystem destinations.
 
 ## Read the code in this order
 
 1. `data/vendors/`: inputs with an objectively checkable answer.
 2. `src/researcher.py`: document loading, instructions, and validation.
 3. `src/model_client.py`: local model request and response handling.
-4. `src/main.py`: CLI and experiment records.
-5. `tests/test_researcher.py`: fixture, failure-path, and mocked transport checks.
+4. `src/writer.py`: writer instructions, handoff, report validation, and offline fixture.
+5. `src/main.py`: CLI, sequential execution, and experiment records.
+6. `tests/test_researcher.py` and `tests/test_writer.py`: fixture, handoff, failure-path, and mocked transport checks.
 
 Tests use fixtures and a mocked HTTP response. A passing test suite does not mean live model inference was tested.
 
 ## Next milestones
 
 1. Run a real model repeatedly and document extraction errors.
-2. Add a writer that recommends a vendor from the researcher findings.
+2. Verify writer recommendations and explanations on clean tasks before introducing attacks.
 3. Add a coordinator with an explicit, fixed handoff sequence.
 4. Add in-memory action tools and observable authorization decisions.
 5. Define attack success and legitimate-task completion using independent state checks.
