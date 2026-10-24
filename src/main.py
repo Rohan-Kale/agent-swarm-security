@@ -12,15 +12,19 @@ from uuid import uuid4
 from .model_client import OllamaClient
 from .researcher import PROMPT_VERSION, build_messages, load_documents, offline_response, validate_findings
 from . import writer
+from .researcher import EVIDENCE_PROMPT_VERSION
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TASK = "Compare vendors for a team requiring SSO. Recommend the cheapest qualifying vendor and explain why the other vendors were not selected."
 
 
 def run(args):
+    verify_evidence = getattr(args, "verify_evidence", False)
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
     record = {
-        "run_id": run_id, "task": args.task, "prompt_version": PROMPT_VERSION,
+        "run_id": run_id, "task": args.task,
+        "prompt_version": EVIDENCE_PROMPT_VERSION if verify_evidence else PROMPT_VERSION,
+        "defense": "feature-header-evidence-v1" if verify_evidence else "none",
         "mode": "offline-fixture" if args.offline else "ollama",
         "requested_model": args.model, "temperature": None if args.offline else 0,
         "status": "started",
@@ -28,11 +32,20 @@ def run(args):
     started = time.perf_counter()
     try:
         documents = load_documents(args.documents)
-        messages = build_messages(args.task, documents)
+        record["documents_directory"] = str(args.documents.resolve())
+        messages = build_messages(args.task, documents, verify_evidence=verify_evidence)
         record["messages"] = messages
-        response = offline_response(documents) if args.offline else OllamaClient(args.model, args.host).complete(messages)
+        response = offline_response(documents, verify_evidence=verify_evidence) if args.offline else OllamaClient(args.model, args.host).complete(messages)
         record["response"] = response
-        record["findings"] = validate_findings(response["content"], documents)
+        record["evidence_check"] = {"status": "pending" if verify_evidence else "disabled"}
+        try:
+            record["findings"] = validate_findings(response["content"], documents, verify_evidence=verify_evidence)
+        except ValueError:
+            if verify_evidence:
+                record["evidence_check"]["status"] = "rejected"
+            raise
+        if verify_evidence:
+            record["evidence_check"]["status"] = "passed"
         if args.with_writer:
             writer_record = {"prompt_version": writer.PROMPT_VERSION, "status": "started"}
             record["writer"] = writer_record
@@ -86,6 +99,7 @@ def main():
     parser.add_argument("--runs", type=Path, default=ROOT / "runs")
     parser.add_argument("--task", default=DEFAULT_TASK)
     parser.add_argument("--with-writer", action="store_true", help="Pass validated researcher findings to a separate writer conversation.")
+    parser.add_argument("--verify-evidence", action="store_true", help="Require exact feature-header citations and verify features before writer handoff.")
     args = parser.parse_args()
     if not args.offline and not args.model:
         parser.error("Choose --model YOUR_INSTALLED_MODEL or use --offline to check the setup.")
